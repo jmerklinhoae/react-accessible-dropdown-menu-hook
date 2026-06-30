@@ -13,9 +13,7 @@ on:
     branches:
       - master
 
-# Don't let Puppeteer's postinstall auto-download a browser. It downloads into a
-# location that has proven unreliable on GitHub-hosted runners; the `test` job
-# installs the browser explicitly (and caches it) instead.
+# Skip Puppeteer's postinstall browser download everywhere by default; only the `test` job opts back in (and caches the browser), since it's the only job that launches Chrome
 env:
   PUPPETEER_SKIP_DOWNLOAD: 'true'
 
@@ -63,14 +61,30 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
+      # One cache entry per Puppeteer version (keyed on the lockfile); each holds the single pinned Chrome build, and GitHub evicts stale entries automatically (7-day / 10 GB LRU)
       - name: Cache Puppeteer browser
         uses: actions/cache@v3
         with:
           path: ~/.cache/puppeteer
           key: ${{ runner.os }}-puppeteer-${{ hashFiles('test-projects/browser/yarn.lock') }}
       - run: yarn dev
+      # Install the exact pinned Chrome build directly (not via yarn's postinstall, which the global skip suppresses) and verify it landed; retry because the download has been seen to silently no-op on hosted runners
       - name: Install Chrome for Puppeteer
-        run: yarn --cwd ./test-projects/browser download-browser
+        working-directory: ./test-projects/browser
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: ''
+        run: |
+          for attempt in 1 2 3; do
+            node node_modules/puppeteer/install.mjs || true
+            if node -e "process.exit(require('fs').existsSync(require('puppeteer').executablePath()) ? 0 : 1)"; then
+              echo "Chrome ready: $(node -p "require('puppeteer').executablePath()")"
+              exit 0
+            fi
+            echo "Chrome not found after attempt $attempt; retrying..."
+            sleep 5
+          done
+          echo "::error::Failed to install Chrome for Puppeteer after 3 attempts"
+          exit 1
       - run: yarn test
       - name: Codecov
         uses: codecov/codecov-action@v3

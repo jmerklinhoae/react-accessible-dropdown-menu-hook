@@ -1,7 +1,6 @@
 {
 	"homepage": ".",
 	"scripts": {
-		"download-browser": "puppeteer browsers install chrome",
 		"pretest": "react-scripts build",
 		"test": "jest --color"
 	},

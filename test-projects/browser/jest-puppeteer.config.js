@@ -12,8 +12,6 @@ console.log(
 
 module.exports = {
 	launch: {
-		// `--no-sandbox` is required to launch Chrome inside CI containers such as GitHub-hosted runners; see https://pptr.dev/troubleshooting#setting-up-chrome-linux-sandbox
 		executablePath,
-		args: ['--no-sandbox', '--disable-setuid-sandbox'],
 	},
 };

@@ -72,6 +72,9 @@ jobs:
           fi
           echo "Using $("$CHROME" --version) at $CHROME"
           echo "PUPPETEER_EXECUTABLE_PATH=$CHROME" >> "$GITHUB_ENV"
+      # ubuntu-latest (24.04) sets kernel.apparmor_restrict_unprivileged_userns=1, which blocks Chrome's user-namespace sandbox; re-allow it so Chrome runs sandboxed rather than relying on the insecure --no-sandbox
+      - name: Allow Chrome's user-namespace sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: yarn test
       - name: Codecov
         uses: codecov/codecov-action@v3

@@ -1,7 +1,19 @@
-// Configuration for jest-puppeteer (read automatically at runtime via cosmiconfig); `--no-sandbox` is required to launch Chrome inside CI containers such as GitHub-hosted runners (see https://pptr.dev/troubleshooting#setting-up-chrome-linux-sandbox), and PUPPETEER_EXECUTABLE_PATH lets CI launch the runner's preinstalled Chrome instead of a downloaded build (falls back to Puppeteer's own download locally)
+// Configuration for jest-puppeteer (read automatically at runtime via cosmiconfig)
+const fs = require('fs');
+const puppeteer = require('puppeteer');
+
+// Resolve which Chrome to launch: prefer an explicit path — CI sets PUPPETEER_EXECUTABLE_PATH to the runner's preinstalled Chrome (see main.yml) — otherwise fall back to the version-pinned build Puppeteer manages locally
+const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath();
+
+// Report the resolved binary so it's obvious where Chrome is actually running, and flag early when it's missing
+console.log(
+	`[jest-puppeteer] Chrome executable: ${executablePath}${fs.existsSync(executablePath) ? '' : ' — NOT FOUND'}`
+);
+
 module.exports = {
 	launch: {
-		executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+		// `--no-sandbox` is required to launch Chrome inside CI containers such as GitHub-hosted runners; see https://pptr.dev/troubleshooting#setting-up-chrome-linux-sandbox
+		executablePath,
 		args: ['--no-sandbox', '--disable-setuid-sandbox'],
 	},
 };

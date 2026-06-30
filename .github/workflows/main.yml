@@ -13,7 +13,7 @@ on:
     branches:
       - master
 
-# Skip Puppeteer's postinstall browser download everywhere by default; only the `test` job opts back in (and caches the browser), since it's the only job that launches Chrome
+# Never download Chromium during installs; the only job that needs a browser (test) launches the runner's preinstalled Chrome instead, which is far more reliable than Puppeteer's download/extract on hosted runners
 env:
   PUPPETEER_SKIP_DOWNLOAD: 'true'
 
@@ -61,30 +61,17 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
-      # One cache entry per Puppeteer version (keyed on the lockfile); each holds the single pinned Chrome build, and GitHub evicts stale entries automatically (7-day / 10 GB LRU)
-      - name: Cache Puppeteer browser
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/puppeteer
-          key: ${{ runner.os }}-puppeteer-${{ hashFiles('test-projects/browser/yarn.lock') }}
       - run: yarn dev
-      # Install the exact pinned Chrome build directly (not via yarn's postinstall, which the global skip suppresses) and verify it landed; retry because the download has been seen to silently no-op on hosted runners
-      - name: Install Chrome for Puppeteer
-        working-directory: ./test-projects/browser
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: ''
+      # ubuntu-latest ships Google Chrome preinstalled; point Puppeteer at it (jest-puppeteer.config.js reads PUPPETEER_EXECUTABLE_PATH) rather than downloading a build, whose extraction has proven unreliable on hosted runners
+      - name: Use the runner's preinstalled Chrome
         run: |
-          for attempt in 1 2 3; do
-            node node_modules/puppeteer/install.mjs || true
-            if node -e "process.exit(require('fs').existsSync(require('puppeteer').executablePath()) ? 0 : 1)"; then
-              echo "Chrome ready: $(node -p "require('puppeteer').executablePath()")"
-              exit 0
-            fi
-            echo "Chrome not found after attempt $attempt; retrying..."
-            sleep 5
-          done
-          echo "::error::Failed to install Chrome for Puppeteer after 3 attempts"
-          exit 1
+          CHROME="$(command -v google-chrome-stable || command -v google-chrome || true)"
+          if [ -z "$CHROME" ]; then
+            echo "::error::No preinstalled Google Chrome found on the runner"
+            exit 1
+          fi
+          echo "Using $("$CHROME" --version) at $CHROME"
+          echo "PUPPETEER_EXECUTABLE_PATH=$CHROME" >> "$GITHUB_ENV"
       - run: yarn test
       - name: Codecov
         uses: codecov/codecov-action@v3

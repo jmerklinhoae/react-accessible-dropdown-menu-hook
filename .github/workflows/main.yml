@@ -72,6 +72,12 @@ jobs:
           fi
           echo "Using chrome version $("$CHROME" --version) at $CHROME"
           echo "PUPPETEER_EXECUTABLE_PATH=$CHROME" >> "$GITHUB_ENV"
+      - name: DIAG sandbox state
+        run: |
+          echo "userns sysctl: $(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"
+          echo "chrome-sandbox: $(ls -l /opt/google/chrome/chrome-sandbox 2>/dev/null || echo missing)"
+          echo "apparmor chrome profiles:"; sudo aa-status 2>/dev/null | grep -i chrome || echo "  none"
+          unshare --user --map-root-user echo "unprivileged userns: ALLOWED" 2>&1 || echo "unprivileged userns: BLOCKED"
       - run: yarn test
       - name: Codecov
         uses: codecov/codecov-action@v3

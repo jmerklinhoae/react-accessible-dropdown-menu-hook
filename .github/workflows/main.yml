@@ -14,9 +14,6 @@ on:
     branches:
       - master
 
-env:
-  PUPPETEER_SKIP_DOWNLOAD: 'true'
-
 jobs:
   lint:
     name: Lint code
@@ -62,25 +59,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
       - run: yarn dev
-      # ubuntu-latest ships Google Chrome preinstalled; point Puppeteer at it rather than downloading a build, whose extraction has proven unreliable on hosted runners
-      - name: Use the runner's preinstalled Chrome
-        run: |
-          CHROME="$(command -v google-chrome-stable || command -v google-chrome || true)"
-          if [ -z "$CHROME" ]; then
-            echo "::error::No preinstalled Google Chrome found on the runner"
-            exit 1
-          fi
-          echo "Using chrome version $("$CHROME" --version) at $CHROME"
-          echo "PUPPETEER_EXECUTABLE_PATH=$CHROME" >> "$GITHUB_ENV"
-      - name: DIAG sandbox state
-        run: |
-          echo "userns sysctl: $(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"
-          echo "probe unshare --user:            $(unshare --user true 2>&1 && echo ALLOWED || echo BLOCKED)"
-          echo "probe unshare --user --map-root: $(unshare --user --map-root-user true 2>&1 && echo ALLOWED || echo BLOCKED)"
-          echo "=== direct chrome launch with NO sandbox flags, capturing stderr ==="
-          /opt/google/chrome/chrome --headless=new --dump-dom about:blank >/dev/null 2>/tmp/chromeerr
-          echo "chrome exit=$?"
-          echo "--- chrome stderr (sandbox lines) ---"; grep -iE "sandbox|namespace|zygote" /tmp/chromeerr || echo "  (no sandbox-related stderr)"
       - run: yarn test
       - name: Codecov
         uses: codecov/codecov-action@v3

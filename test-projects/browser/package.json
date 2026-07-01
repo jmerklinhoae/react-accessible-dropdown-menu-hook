@@ -29,6 +29,9 @@
 		"react-accessible-dropdown-menu-hook": "link:../..",
 		"react-dom": "link:../../node_modules/react-dom"
 	},
+	"allowScripts": {
+		"puppeteer": true
+	},
 	"browserslist": {
 		"production": [
 			">0.2%",

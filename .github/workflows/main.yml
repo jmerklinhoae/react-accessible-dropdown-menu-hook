@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - ci-verify
     tags:
       - v[0-9]+.[0-9]+.[0-9]+
       - v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+
@@ -72,9 +73,18 @@ jobs:
           fi
           echo "Using $("$CHROME" --version) at $CHROME"
           echo "PUPPETEER_EXECUTABLE_PATH=$CHROME" >> "$GITHUB_ENV"
-      # ubuntu-latest (24.04) sets kernel.apparmor_restrict_unprivileged_userns=1, which blocks Chrome's user-namespace sandbox; re-allow it so Chrome runs sandboxed rather than relying on the insecure --no-sandbox
-      - name: Allow Chrome's user-namespace sandbox
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # Option C, attempt 1 (namespace sandbox): grant userns to only the Chrome binary via a scoped AppArmor profile, leaving the kernel restriction in place. NOTE: this does NOT work for the system google-chrome, which bundles a setuid helper and therefore never takes the namespace-sandbox path — so the test job fails here. Kept as a documented dead-end.
+      - name: Allow Chrome's user-namespace sandbox via AppArmor
+        run: |
+          {
+            echo 'abi <abi/4.0>,'
+            echo 'include <tunables/global>'
+            echo 'profile chrome-userns /opt/google/chrome/chrome flags=(unconfined) {'
+            echo '  userns,'
+            echo '  include if exists <local/chrome-userns>'
+            echo '}'
+          } | sudo tee /etc/apparmor.d/chrome-userns >/dev/null
+          sudo apparmor_parser -r /etc/apparmor.d/chrome-userns
       - run: yarn test
       - name: Codecov
         uses: codecov/codecov-action@v3

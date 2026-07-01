@@ -77,8 +77,8 @@ jobs:
           echo "userns sysctl: $(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"
           echo "probe unshare --user:            $(unshare --user true 2>&1 && echo ALLOWED || echo BLOCKED)"
           echo "probe unshare --user --map-root: $(unshare --user --map-root-user true 2>&1 && echo ALLOWED || echo BLOCKED)"
-          echo "=== direct chrome launch with --disable-setuid-sandbox, capturing stderr ==="
-          /opt/google/chrome/chrome --headless=new --disable-setuid-sandbox --dump-dom about:blank >/dev/null 2>/tmp/chromeerr
+          echo "=== direct chrome launch with NO sandbox flags, capturing stderr ==="
+          /opt/google/chrome/chrome --headless=new --dump-dom about:blank >/dev/null 2>/tmp/chromeerr
           echo "chrome exit=$?"
           echo "--- chrome stderr (sandbox lines) ---"; grep -iE "sandbox|namespace|zygote" /tmp/chromeerr || echo "  (no sandbox-related stderr)"
       - run: yarn test

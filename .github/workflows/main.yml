@@ -75,9 +75,12 @@ jobs:
       - name: DIAG sandbox state
         run: |
           echo "userns sysctl: $(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"
-          echo "chrome-sandbox: $(ls -l /opt/google/chrome/chrome-sandbox 2>/dev/null || echo missing)"
-          echo "apparmor chrome profiles:"; sudo aa-status 2>/dev/null | grep -i chrome || echo "  none"
-          unshare --user --map-root-user echo "unprivileged userns: ALLOWED" 2>&1 || echo "unprivileged userns: BLOCKED"
+          echo "probe unshare --user:            $(unshare --user true 2>&1 && echo ALLOWED || echo BLOCKED)"
+          echo "probe unshare --user --map-root: $(unshare --user --map-root-user true 2>&1 && echo ALLOWED || echo BLOCKED)"
+          echo "=== direct chrome launch with --disable-setuid-sandbox, capturing stderr ==="
+          /opt/google/chrome/chrome --headless=new --disable-setuid-sandbox --dump-dom about:blank >/dev/null 2>/tmp/chromeerr
+          echo "chrome exit=$?"
+          echo "--- chrome stderr (sandbox lines) ---"; grep -iE "sandbox|namespace|zygote" /tmp/chromeerr || echo "  (no sandbox-related stderr)"
       - run: yarn test
       - name: Codecov
         uses: codecov/codecov-action@v3

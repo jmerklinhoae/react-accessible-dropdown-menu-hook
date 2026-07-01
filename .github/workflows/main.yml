@@ -73,18 +73,8 @@ jobs:
           fi
           echo "Using $("$CHROME" --version) at $CHROME"
           echo "PUPPETEER_EXECUTABLE_PATH=$CHROME" >> "$GITHUB_ENV"
-      # Option C, attempt 1 (namespace sandbox): grant userns to only the Chrome binary via a scoped AppArmor profile, leaving the kernel restriction in place. NOTE: this does NOT work for the system google-chrome, which bundles a setuid helper and therefore never takes the namespace-sandbox path — so the test job fails here. Kept as a documented dead-end.
-      - name: Allow Chrome's user-namespace sandbox via AppArmor
-        run: |
-          {
-            echo 'abi <abi/4.0>,'
-            echo 'include <tunables/global>'
-            echo 'profile chrome-userns /opt/google/chrome/chrome flags=(unconfined) {'
-            echo '  userns,'
-            echo '  include if exists <local/chrome-userns>'
-            echo '}'
-          } | sudo tee /etc/apparmor.d/chrome-userns >/dev/null
-          sudo apparmor_parser -r /etc/apparmor.d/chrome-userns
+      # Option C (setuid sandbox): restore the setuid bit on Chrome's own sandbox helper — the runner image ships it un-setuid, so Chrome aborts rather than run unsandboxed. No kernel change; scoped to Chrome's helper binary, set to the mode Google's own installer uses
+      - run: sudo chmod 4755 /opt/google/chrome/chrome-sandbox
       - run: yarn test
       - name: Codecov
         uses: codecov/codecov-action@v3
